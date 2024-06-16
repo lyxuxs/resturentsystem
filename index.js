@@ -17,11 +17,12 @@ app.use(express.json());
 app.post('/api/users', async (req, res) => {
   try {
     const { name, email, password ,role} = req.body;
+    const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = await prisma.user.create({
       data: {
         name,
         email,
-        password,
+        password: hashedPassword,
         role
       },
     });
