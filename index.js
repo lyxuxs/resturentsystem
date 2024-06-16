@@ -1,19 +1,26 @@
-const { PrismaClient } = require('@prisma/client');
+// index.js
+
+const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const express = require('express');
-const app = express();
+const { PrismaClient } = require('@prisma/client');
+
 const prisma = new PrismaClient();
+const app = express();
+const PORT = process.env.PORT || 3000;
+const JWT_SECRET = 'your_jwt_secret'; // Replace with a strong, random secret
 
 app.use(express.json());
 
-// Register User
-app.post('/register', async (req, res) => {
-  const { name, email, role, password } = req.body;
-  const hashedPassword = await bcrypt.hash(password, 10);
-
+// Create a new user
+app.post('/api/users', async (req, res) => {
   try {
-    const user = await prisma.user.create({
+    const { name, email, role, password } = req.body;
+
+    // Hash the password before storing in the database
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = await prisma.user.create({
       data: {
         name,
         email,
@@ -21,75 +28,131 @@ app.post('/register', async (req, res) => {
         password: hashedPassword,
       },
     });
-    res.status(201).json(user);
+
+    res.status(201).json(newUser);
   } catch (error) {
-    res.status(400).json({ error: 'User already exists' });
+    console.error(error);
+    res.status(500).json({ error: 'Failed to create user' });
   }
 });
 
-// Login User
-app.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+// Get all users
+app.get('/api/users', async (req, res) => {
+  try {
+    const users = await prisma.user.findMany();
+    res.json(users);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
 
-  const user = await prisma.user.findUnique({
-    where: { email },
-  });
+// Get user by ID
+app.get('/api/users/:id', async (req, res) => {
+  const userId = parseInt(req.params.id);
 
-  if (user && (await bcrypt.compare(password, user.password))) {
-    const token = jwt.sign({ userId: user.id, role: user.role }, 'your_secret_key', {
-      expiresIn: '1h',
+  try {
+    const user = await prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
     });
-    res.json({ token, role: user.role });
-  } else {
-    res.status(401).json({ error: 'Invalid credentials' });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch user' });
   }
 });
 
-// Get Users
-app.get('/users', async (req, res) => {
-  const users = await prisma.user.findMany();
-  res.json(users);
-});
-
-// Get User by ID
-app.get('/users/:id', async (req, res) => {
-  const { id } = req.params;
-  const user = await prisma.user.findUnique({
-    where: { id: Number(id) },
-  });
-  res.json(user);
-});
-
-// Update User
-app.put('/users/:id', async (req, res) => {
-  const { id } = req.params;
+// Update user by ID
+app.put('/api/users/:id', async (req, res) => {
+  const userId = parseInt(req.params.id);
   const { name, email, role, password } = req.body;
 
-  const hashedPassword = password ? await bcrypt.hash(password, 10) : undefined;
+  try {
+    // Hash the new password if provided
+    let hashedPassword;
+    if (password) {
+      hashedPassword = await bcrypt.hash(password, 10);
+    }
 
-  const updatedUser = await prisma.user.update({
-    where: { id: Number(id) },
-    data: {
-      name,
-      email,
-      role,
-      password: hashedPassword,
-    },
-  });
+    const updatedUser = await prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        name,
+        email,
+        role,
+        password: hashedPassword || undefined, // Update password only if provided
+      },
+    });
 
-  res.json(updatedUser);
+    res.json(updatedUser);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
 });
 
-// Delete User
-app.delete('/users/:id', async (req, res) => {
-  const { id } = req.params;
-  await prisma.user.delete({
-    where: { id: Number(id) },
-  });
-  res.status(204).end();
+// Delete user by ID
+app.delete('/api/users/:id', async (req, res) => {
+  const userId = parseInt(req.params.id);
+
+  try {
+    await prisma.user.delete({
+      where: {
+        id: userId,
+      },
+    });
+
+    res.status(204).end();
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
 });
 
-const PORT = process.env.PORT || 3000;
+// User login
+app.post('/api/login', async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: {
+        email,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const passwordMatch = await bcrypt.compare(password, user.password);
+
+    if (!passwordMatch) {
+      return res.status(401).json({ error: 'Incorrect password' });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '1h' } // Token expires in 1 hour
+    );
+
+    res.json({ token, role: user.role });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server is running on http://localhost:${PORT}`);
 });
