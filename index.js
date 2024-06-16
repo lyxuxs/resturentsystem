@@ -1,5 +1,5 @@
 // index.js
-
+const cors = require('cors');
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -9,6 +9,8 @@ const prisma = new PrismaClient();
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = "your_jwt_secret"; // Replace with a strong, random secret
+
+app.use(cors());
 
 app.use(express.json());
 
