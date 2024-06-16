@@ -14,30 +14,23 @@ app.use(cors());
 
 app.use(express.json());
 
-// Create a new user
-app.post("/api/users", async (req, res) => {
+app.post('/api/users', async (req, res) => {
   try {
-    const { name, email, role, password,branches } = req.body;
-
-    // Hash the password before storing in the database
-    const hashedPassword = await bcrypt.hash(password, 10);
-
+    const { name, email, password ,role} = req.body;
     const newUser = await prisma.user.create({
       data: {
         name,
         email,
-        role,
-        password: hashedPassword,
-        branches
+        password,
+        role
       },
     });
-
-    res.status(201).json(newUser);
+    res.json(newUser);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Failed to create user" });
+    res.status(500).json({ error: error.message });
   }
 });
+
 
 // Get all users
 app.get("/api/users", async (req, res) => {

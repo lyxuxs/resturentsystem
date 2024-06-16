@@ -13,16 +13,19 @@ model User {
   id       Int      @id @default(autoincrement())
   name     String
   email    String   @unique
-  role     String   // Roles could be 'admin', 'user', etc.
   password String
-  branches Branch[] @relation("UserBranch", references: [id])
+  role     String
+  branches Branch[]  @relation("UserBranch")
+  orders   Order[]
+  reviews  Review[]
 }
 
 model Branch {
-  id      Int     @id @default(autoincrement())
-  name    String
-  users   User[]  @relation("UserBranch")
+  id     Int    @id @default(autoincrement())
+  name   String
+  users  User[] @relation("UserBranch")
 }
+
 model InventoryItem {
   id          Int     @id @default(autoincrement())
   name        String
