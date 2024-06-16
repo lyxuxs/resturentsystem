@@ -17,7 +17,7 @@ app.use(express.json());
 // Create a new user
 app.post("/api/users", async (req, res) => {
   try {
-    const { name, email, role, password } = req.body;
+    const { name, email, role, password,branches } = req.body;
 
     // Hash the password before storing in the database
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -28,6 +28,7 @@ app.post("/api/users", async (req, res) => {
         email,
         role,
         password: hashedPassword,
+        branches
       },
     });
 
