@@ -460,39 +460,51 @@ app.delete("/api/menu-items/:id", async (req, res) => {
   }
 });
 
-// Get all orders
-app.get("/api/orders", async (req, res) => {
-  try {
-    const orders = await prisma.order.findMany({
-      include: {
-        items: true,
-      },
-    });
-    res.json(orders);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Failed to fetch orders" });
-  }
-});
-
-// Calculate total price based on items
-let totalPrice = 0;
-for (const item of items) {
-  const menuItem = await prisma.menuItem.findUnique({
-    where: {
-      id: item.menuItemId,
-    },
+app.post('/api/orders', async (req, res) => {
+    try {
+      const { userId, items } = req.body;
+  
+      // Calculate total price based on items
+      let totalPrice = 0;
+      for (const item of items) {
+        const menuItem = await prisma.menuItem.findUnique({
+          where: {
+            id: item.menuItemId,
+          },
+        });
+  
+        if (!menuItem) {
+          return res.status(400).json({ error: `Menu item with ID ${item.menuItemId} not found` });
+        }
+  
+        totalPrice += menuItem.price * item.quantity;
+      }
+  
+      const newOrder = await prisma.order.create({
+        data: {
+          datetime: new Date(),
+          orderNumber: generateOrderNumber(), // You can implement your own order number generation function
+          total: totalPrice,
+          userId,
+          items: {
+            create: items.map(item => ({
+              quantity: item.quantity,
+              menuItemId: item.menuItemId,
+            })),
+          },
+        },
+        include: {
+          items: true,
+        },
+      });
+  
+      res.status(201).json(newOrder);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Failed to create order' });
+    }
   });
-
-  if (!menuItem) {
-    return res
-      .status(400)
-      .json({ error: `Menu item with ID ${item.menuItemId} not found` });
-  }
-
-  totalPrice += menuItem.price * item.quantity;
-}
-
+  
 // Get all orders
 app.get("/api/orders", async (req, res) => {
   try {
@@ -595,7 +607,7 @@ app.get("/api/reviews", async (req, res) => {
 });
 
 // Get reviews for a specific menu item
-app.get("/api/menu-items/:menuItemId/reviews", async (req, res) => {
+app.get("/api/menu-items/:menuItemId/reviews", async(req, res) => {
   const menuItemId = parseInt(req.params.menuItemId);
 
   try {
