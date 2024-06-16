@@ -1,18 +1,25 @@
-generator client {
-  provider = "prisma-client-js"
-}
+// schema.prisma
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+generator client {
+  provider = "prisma-client-js"
+}
+
 model User {
   id       Int      @id @default(autoincrement())
   name     String
   email    String   @unique
-  role     String
+  role     String   // Roles could be 'admin', 'user', etc.
   password String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  branches Branch[] @relation("UserBranch", references: [id])
+}
+
+model Branch {
+  id      Int     @id @default(autoincrement())
+  name    String
+  users   User[]  @relation("UserBranch")
 }

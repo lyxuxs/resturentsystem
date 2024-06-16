@@ -153,6 +153,120 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+app.post('/api/branches', async (req, res) => {
+    try {
+      const { name } = req.body;
+  
+      const newBranch = await prisma.branch.create({
+        data: {
+          name,
+        },
+      });
+  
+      res.status(201).json(newBranch);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Failed to create branch' });
+    }
+  });
+  
+  // Get all branches
+  app.get('/api/branches', async (req, res) => {
+    try {
+      const branches = await prisma.branch.findMany();
+      res.json(branches);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Failed to fetch branches' });
+    }
+  });
+  
+  // Add branch to user
+  app.put('/api/users/:userId/add-branch/:branchId', async (req, res) => {
+    const userId = parseInt(req.params.userId);
+    const branchId = parseInt(req.params.branchId);
+  
+    try {
+      const user = await prisma.user.findUnique({
+        where: {
+          id: userId,
+        },
+      });
+  
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+  
+      const branch = await prisma.branch.findUnique({
+        where: {
+          id: branchId,
+        },
+      });
+  
+      if (!branch) {
+        return res.status(404).json({ error: 'Branch not found' });
+      }
+  
+      // Add branch to user
+      const updatedUser = await prisma.user.update({
+        where: {
+          id: userId,
+        },
+        data: {
+          branches: {
+            connect: {
+              id: branchId,
+            },
+          },
+        },
+      });
+  
+      res.json(updatedUser);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Failed to add branch to user' });
+    }
+  });
+  
+  // Remove branch from user
+  app.put('/api/users/:userId/remove-branch/:branchId', async (req, res) => {
+    const userId = parseInt(req.params.userId);
+    const branchId = parseInt(req.params.branchId);
+  
+    try {
+      const user = await prisma.user.findUnique({
+        where: {
+          id: userId,
+        },
+      });
+  
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+  
+      // Remove branch from user
+      const updatedUser = await prisma.user.update({
+        where: {
+          id: userId,
+        },
+        data: {
+          branches: {
+            disconnect: {
+              id: branchId,
+            },
+          },
+        },
+      });
+  
+      res.json(updatedUser);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Failed to remove branch from user' });
+    }
+  });
+
+
+
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
